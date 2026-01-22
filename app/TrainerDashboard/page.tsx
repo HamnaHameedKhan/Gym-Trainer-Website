@@ -1,6 +1,20 @@
-// pages/trainer-dashboard.js
-import { Bell, MessageCircle, Users, FileText, BookOpen, CheckSquare, Settings } from 'lucide-react';
-import Image from 'next/image';
+"use client";
+import {
+  Bell,
+  MessageCircle,
+  Users,
+  FileText,
+  BookOpen,
+  CheckSquare,
+  Settings,
+  Dumbbell,
+  LogOut,
+} from "lucide-react";
+import Image from "next/image";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import toast, { Toaster } from "react-hot-toast";
 
 const TrainerDashboard = () => {
   const recentRequests = [
@@ -25,11 +39,79 @@ const TrainerDashboard = () => {
   ];
 
   const activityFeed = [
-    { text: "James completed 'Leg Day Destruction'", time: "25 mins ago", color: "green" },
-    { text: "New message from Emily: 'My shoulder hurts...'", time: "1 hour ago", color: "blue" },
-    { text: "Michael renewed subscription", time: "3 hours ago", color: "yellow" },
-    { text: "Sarah missed 2 workouts this week", time: "Yesterday", color: "red" },
+    {
+      text: "James completed 'Leg Day Destruction'",
+      time: "25 mins ago",
+      color: "green",
+    },
+    {
+      text: "New message from Emily: 'My shoulder hurts...'",
+      time: "1 hour ago",
+      color: "blue",
+    },
+    {
+      text: "Michael renewed subscription",
+      time: "3 hours ago",
+      color: "yellow",
+    },
+    {
+      text: "Sarah missed 2 workouts this week",
+      time: "Yesterday",
+      color: "red",
+    },
   ];
+
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  // Check session and role
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.push("/Login");
+        return;
+      }
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (userData?.role !== "trainer") {
+        router.push("/Login");
+        return;
+      }
+
+      setLoading(false);
+    };
+
+    checkUser();
+
+    // Auto logout on session expire
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        router.push("/Login");
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
+
+  // Logout function
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) toast.error(error.message);
+    else toast.success("Logged out successfully!");
+  };
+
+  if (loading) return <p className="text-white">Loading...</p>;
 
   return (
     <div className="flex min-h-screen bg-[#121212] text-white">
@@ -37,11 +119,11 @@ const TrainerDashboard = () => {
       <aside className="w-64 bg-[#0a0a0a] p-6 flex flex-col justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#00ff66] flex items-center gap-2 mb-10">
-            <span>🏋️‍♂️</span> FITMATCH
+            <Dumbbell className="text-[#00ff66]" /> FITTMATCH
           </h1>
 
           <nav className="flex flex-col gap-3">
-            <a className="bg-[#00ff66] text-black px-4 py-2 rounded flex items-center gap-2"> 
+            <a className="bg-[#00ff66] text-black px-4 py-2 rounded flex items-center gap-2">
               <FileText className="w-5 h-5" /> Dashboard
             </a>
             <a className="hover:bg-[#00000014] px-4 py-2 rounded flex items-center gap-2">
@@ -69,8 +151,14 @@ const TrainerDashboard = () => {
           </nav>
         </div>
 
-        <a className="hover:bg-[#00000014] px-4 py-2 rounded flex items-center gap-2">
-          <Settings className="w-5 h-5" /> Settings
+        <a
+          onClick={(e) => {
+            e.preventDefault();
+            handleLogout();
+          }}
+          className="hover:bg-[#00ff66] px-4 py-2 rounded flex items-center gap-2 hover:text-black"
+        >
+          <LogOut className="w-5 h-5" /> Logout
         </a>
       </aside>
 
@@ -122,11 +210,16 @@ const TrainerDashboard = () => {
           <div className="col-span-2 bg-[#0e0e0e] p-4 rounded space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg">Recent Hire Requests</h3>
-              <a className="text-[#00ff66] text-sm cursor-pointer">View All Requests</a>
+              <a className="text-[#00ff66] text-sm cursor-pointer">
+                View All Requests
+              </a>
             </div>
 
             {recentRequests.map((req, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-[#121212] p-3 rounded">
+              <div
+                key={idx}
+                className="flex justify-between items-center bg-[#121212] p-3 rounded"
+              >
                 <div className="flex items-center gap-4">
                   <Image
                     src={req.avatar}
@@ -137,12 +230,18 @@ const TrainerDashboard = () => {
                   />
                   <div>
                     <p className="font-semibold">{req.name}</p>
-                    <p className="text-gray-400 text-sm">Looking for: {req.goal} - {req.frequency}</p>
+                    <p className="text-gray-400 text-sm">
+                      Looking for: {req.goal} - {req.frequency}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1 rounded border border-gray-600">Decline</button>
-                  <button className="px-3 py-1 rounded bg-[#00ff66] text-black">Accept</button>
+                  <button className="px-3 py-1 rounded border border-gray-600">
+                    Decline
+                  </button>
+                  <button className="px-3 py-1 rounded bg-[#00ff66] text-black">
+                    Accept
+                  </button>
                 </div>
               </div>
             ))}
@@ -153,7 +252,9 @@ const TrainerDashboard = () => {
             <ul className="space-y-3">
               {activityFeed.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className={`w-2 h-2 mt-1 rounded-full bg-${item.color}-500`}></span>
+                  <span
+                    className={`w-2 h-2 mt-1 rounded-full bg-${item.color}-500`}
+                  ></span>
                   <div>
                     <p>{item.text}</p>
                     <p className="text-gray-400 text-xs">{item.time}</p>

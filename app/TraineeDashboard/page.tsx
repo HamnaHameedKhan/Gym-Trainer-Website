@@ -1,40 +1,104 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Dumbbell,
   BarChart2,
   Clock,
   User,
   MessageCircle,
-  Settings,
+  LogOut,
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function TraineeDashboard() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
   const sidebarItems = [
     { name: "Dashboard", icon: <Dumbbell /> },
     { name: "My Plan", icon: <BarChart2 /> },
     { name: "Workouts", icon: <Clock /> },
     { name: "Progress", icon: <BarChart2 /> },
     { name: "Chat Trainer", icon: <MessageCircle /> },
-    { name: "Settings", icon: <Settings /> },
+    { name: "Logout", icon: <LogOut />, action: "logout" },
   ];
+
+  // Check session and role
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.push("/Login");
+        return;
+      }
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (userData?.role !== "trainee") {
+        router.push("/Login");
+        return;
+      }
+
+      setLoading(false);
+    };
+
+    checkUser();
+
+    // Auto logout on session expire
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "SIGNED_OUT") {
+          router.push("/Login");
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
+
+  // Logout function
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) toast.error(error.message);
+    else toast.success("Logged out successfully!");
+  };
+
+  if (loading) return <p className="text-white">Loading...</p>;
 
   return (
     <div className="flex h-screen bg-[#121212] text-white">
+      {/* Toast */}
+      <Toaster position="top-right" reverseOrder={false} />
+
       {/* Sidebar */}
       <aside className="w-64 bg-[#0a0a0a] p-6 flex flex-col">
         <div className="text-2xl font-bold mb-10 flex items-center gap-2">
-          <Dumbbell className="text-[#00ff66]" /> FITCORE
+          <Dumbbell className="text-[#00ff66]" /> FITTMATCH
         </div>
+
         {sidebarItems.map((item) => (
           <button
             key={item.name}
+            onClick={item.action === "logout" ? handleLogout : undefined}
             className="flex items-center gap-3 py-2 px-4 rounded-lg mb-2 hover:bg-[#1a1a1a] transition-colors"
           >
             {item.icon} <span>{item.name}</span>
           </button>
         ))}
+
+        {/* User Info */}
         <div className="mt-auto flex items-center gap-3 p-3 bg-[#1a1a1a] rounded-lg">
           <img
             src="/user-avatar.png"

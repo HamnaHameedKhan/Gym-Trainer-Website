@@ -60,12 +60,17 @@ export default function Header() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 mb-12 justify-center md:justify-start px-2 sm:px-0">
+            <Link href="/Signup">
             <button className="bg-[#00ff66] text-black px-5 sm:px-6 py-3 rounded-3xl font-semibold hover:opacity-90 transition text-sm sm:text-base">
               Join as Trainee
             </button>
+            </Link>
+
+            <Link href="/Signup">
             <button className="border border-white/30 text-white px-5 sm:px-6 py-3 rounded-3xl font-semibold hover:bg-white/10 transition text-sm sm:text-base">
               Become a Trainer
             </button>
+            </Link>
           </div>
         </div>
       </div>
