@@ -44,7 +44,7 @@ export default function Login() {
     // 2️⃣ Fetch role from users table
     const { data: userData, error: roleError } = await supabase
       .from("users")
-      .select("role")
+      .select("role,profile_completed")
       .eq("id", userId)
       .single();
 
@@ -57,10 +57,12 @@ export default function Login() {
     // 3️⃣ Redirect based on role
     if (userData.role === "trainee") {
       toast.success("Login successful! Redirecting to Trainee Dashboard...");
-      router.push("/TraineeDashboard");
-    } else if (userData.role === "trainer") {
+      router.push("/trainee/traineeDashboard");
+    } else if (userData.role === "trainer" && !userData.profile_completed) {
       toast.success("Login successful! Redirecting to Trainer Dashboard...");
-      router.push("/TrainerDashboard");
+      router.push("/trainer/trainerDashboard");
+    } else if (userData.role === "trainer" && userData.profile_completed) {
+      router.push("/trainer/trainerDashboard");
     } else {
       toast.error("Role not assigned");
     }
@@ -75,7 +77,11 @@ export default function Login() {
 
       {/* Left Side Image */}
       <div className="md:w-1/2 hidden md:block">
-        <img src={login.src} alt="Fitness" className="w-full h-screen object-cover" />
+        <img
+          src={login.src}
+          alt="Fitness"
+          className="w-full h-screen object-cover"
+        />
       </div>
 
       {/* Right Side Login Form */}
@@ -91,7 +97,8 @@ export default function Login() {
 
           <h2 className="text-white text-3xl font-bold mb-2">Welcome Back</h2>
           <p className="text-gray-400 mb-6 text-sm">
-            Enter your credentials to access your personalized training dashboard.
+            Enter your credentials to access your personalized training
+            dashboard.
           </p>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
