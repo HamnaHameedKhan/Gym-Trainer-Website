@@ -5,6 +5,8 @@ import imageCompression from "browser-image-compression";
 import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Goal, Scale, User } from "lucide-react";
+
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -184,7 +186,12 @@ export default function ProfilePage() {
         <div className="md:col-span-2 space-y-6">
           {/* PERSONAL INFO */}
           <div className="bg-[#1e1e1e] p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
+<h3 className="text-lg font-semibold mb-4 flex items-center gap-3">
+  <span className="bg-[#00ff661a] p-2 rounded-full">
+    <User className="w-5 h-5 text-[#00ff66]" />
+  </span>
+  Personal Information
+</h3>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -247,7 +254,12 @@ export default function ProfilePage() {
 
           {/* BODY */}
           <div className="bg-[#1e1e1e] p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Body Measurements</h3>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-3">
+  <span className="bg-[#00ff661a] p-2 rounded-full">
+    <Scale className="w-5 h-5 text-[#00ff66]" />
+  </span>
+ Body Measurements
+</h3>
 
             <div className="grid md:grid-cols-3 gap-4">
               <div>
@@ -311,7 +323,12 @@ export default function ProfilePage() {
 
           {/* GOAL */}
           <div className="bg-[#1e1e1e] p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Primary Goal</h3>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-3">
+  <span className="bg-[#00ff661a] p-2 rounded-full">
+    <Goal className="w-5 h-5 text-[#00ff66]" />
+  </span>
+  Primary Goal
+</h3>
 
             <div className="flex gap-3 flex-wrap">
               {["WeightLoss", "MuscleGain", "Cardio", "Athletic"].map((g) => (

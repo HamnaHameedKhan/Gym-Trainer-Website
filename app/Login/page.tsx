@@ -34,6 +34,12 @@ export default function Login() {
       return;
     }
 
+
+    if (data.session) {
+  localStorage.setItem("supabase_access_token", data.session.access_token);
+  localStorage.setItem("supabase_refresh_token", data.session.refresh_token);
+  console.log("Session stored:", data.session);
+}
     const userId = data.user?.id;
     if (!userId) {
       toast.error("User not found");

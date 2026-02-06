@@ -9,17 +9,23 @@ import {
   MessageCircle,
   LogOut,
   Settings,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 
 const sidebarItems = [
-  { name: "Dashboard", icon: Dumbbell, path: "/trainee/traineeDashboard" },
+  { name: "Dashboard", icon: Dumbbell, path: "/trainee/traineeDashboard" ,    activePaths: ["/trainee/traineeDashboard"],
+},
+  { name: "Find Trainer", icon: Users, path: "/trainee/find_trainer" , activePaths: [
+      "/trainee/find_trainer",
+      "/trainee/trainer_detail", // 👈 important
+    ],},
   { name: "My Plan", icon: BarChart2, path: "/trainee/my-plan" },
   { name: "Workouts", icon: Clock, path: "/trainee/workouts" },
   { name: "Progress", icon: BarChart2, path: "/trainee/progress" },
   { name: "Chat Trainer", icon: MessageCircle, path: "/trainee/chat" },
-  { name: "Settings", icon: Settings, path: "/trainee/profile" },
+  { name: "Settings", icon: Settings, path: "/trainee/profile", activePaths: ["/trainee/profile"], },
 ];
 
 export default function Sidebar() {
@@ -92,7 +98,9 @@ export default function Sidebar() {
       {/* Menu */}
       <div className="flex flex-col gap-2 flex-1 overflow-y-auto">
         {sidebarItems.map((item) => {
-          const isActive = pathname === item.path;
+        const isActive = (item.activePaths || []).some(
+  (p) => pathname === p || pathname.startsWith(p + "/")
+);
           const Icon = item.icon;
 
           return (

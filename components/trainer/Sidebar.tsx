@@ -11,7 +11,12 @@ import {
   LogOut,
 } from "lucide-react";
 import React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import toast from "react-hot-toast";
+
+
 
 interface SidebarProps {
   active: string;
@@ -21,12 +26,15 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ active, setActive, handleLogout }) => {
   const router = useRouter();
+    const [user, setUser] = useState<any>(null);
+    const [profile, setProfile] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
   const menuItems = [
     { name: "Dashboard", icon: FileText, path: "/trainer/trainerDashboard" },
     { name: "Profile", icon: User, path: "/trainer/profile" },
-    { name: "Requests", icon: CheckSquare },
-    { name: "Trainees", icon: Users },
+    { name: "Requests", icon: CheckSquare,  path: "/trainer/trainee_requests" },
+    { name: "Trainees", icon: Users,path: "/trainer/my_trainees" },
     { name: "Plans", icon: FileText },
     { name: "Logout", icon: LogOut }, // Logout as top menu item
   ];
@@ -36,6 +44,52 @@ const Sidebar: React.FC<SidebarProps> = ({ active, setActive, handleLogout }) =>
     { name: "Assign Workouts", icon: CheckSquare },
     { name: "Chat", icon: MessageCircle },
   ];
+
+
+  
+    // 🔹 Fetch logged-in user
+    useEffect(() => {
+      const getUser = async () => {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+  
+        if (error) {
+          toast.error("Unable to fetch user");
+          return;
+        }
+  
+        setUser(user);
+      };
+  
+      getUser();
+    }, []);
+  
+    // 🔹 Fetch user profile
+    useEffect(() => {
+      if (!user) return;
+  
+      const getProfile = async () => {
+        const { data, error } = await supabase
+          .from("trainer_profiles")
+          .select("full_name, profile_image")
+          .eq("user_id", user.id)
+          .maybeSingle();
+  
+          console.log(data)
+  
+        if (error) {
+          toast.error("Unable to load profile");
+        } else {
+          setProfile(data);
+        }
+  
+        setLoading(false);
+      };
+  
+      getProfile();
+    }, [user]);
 
   return (
     <aside className="w-64 bg-[#0a0a0a] flex flex-col min-h-screen p-6">
@@ -87,6 +141,30 @@ const Sidebar: React.FC<SidebarProps> = ({ active, setActive, handleLogout }) =>
             </a>
           ))}
         </nav>
+      </div>
+
+
+       {/* User Info */}
+      <div className="mt-5 flex items-center gap-3 p-3 bg-[#1a1a1a] rounded-lg">
+        {loading ? (
+          <div className="text-sm text-gray-400">Loading...</div>
+        ) : (
+          <>
+            <img
+              src={profile?.profile_image || "/user-avatar.png"}
+              className="w-10 h-10 rounded-full object-cover"
+              alt="user"
+            />
+            <div>
+              <p className="font-semibold text-sm text-white">
+                {profile?.full_name || "User"}
+              </p>
+              <p className="text-xs text-gray-400 capitalize">
+                {"trainer"}
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );

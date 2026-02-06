@@ -22,18 +22,27 @@ export async function POST(req: Request) {
       profileImageUrl = await uploadToCloudinary(profileImage);
     }
 
-    // Upload certificates to Cloudinary
+     // 2️⃣ Handle certificates
     const certificatesUrls = [];
     if (certificates?.length) {
       for (const cert of certificates) {
-        const url = await uploadToCloudinary(
-          cert.file,
-          "GymTrainer website images/trainer_certificates/"
-        );
-        certificatesUrls.push({ name: cert.name, url });
+        // Check if file is image
+        const isImage = cert.file?.startsWith("data:image") || cert.file?.match(/\.(jpg|jpeg|png|gif)$/i);
+        
+        let url = cert.file; // default: direct file (PDF/other)
+
+        if (isImage) {
+          // Upload only if image
+          url = await uploadToCloudinary(
+            cert.file,
+            "GymTrainer website images/trainer_certificates/"
+          );
+        }
+
+        certificatesUrls.push({ name: cert.name, file: url });
       }
     }
-
+    
     // Insert into Supabase
     const { data, error } = await supabase
       .from("trainer_profiles")

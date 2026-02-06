@@ -78,7 +78,7 @@ export default function TraineeDashboard() {
       <div className="flex justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">
-            Good Morning, {profile?.full_name} 👋
+            Welcome, {profile?.full_name} 👋
           </h1>
           <p className="text-gray-400">Ready to crush your goals?</p>
         </div>
