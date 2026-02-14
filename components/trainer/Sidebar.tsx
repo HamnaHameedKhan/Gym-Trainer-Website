@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ active, setActive, handleLogout }) =>
     { name: "Profile", icon: User, path: "/trainer/profile" },
     { name: "Requests", icon: CheckSquare,  path: "/trainer/trainee_requests" },
     { name: "Trainees", icon: Users,path: "/trainer/my_trainees" },
-    { name: "Plans", icon: FileText },
+    { name: "Plan Requests", icon: FileText , path: "/trainer/plan_request"},
     { name: "Logout", icon: LogOut }, // Logout as top menu item
   ];
 

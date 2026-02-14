@@ -9,12 +9,29 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
   try {
-    const trainerId = request.headers.get("trainer-id"); // trainer id from frontend/auth
-    if (!trainerId) {
+    const userId = request.headers.get("trainer-id");
+     console.log("Trainer ID from header (user_id):", userId);
+    if (!userId) {
       return NextResponse.json({ error: "Trainer ID missing" }, { status: 400 });
     }
 
-    // Fetch accepted requests for this trainer and include trainee profile
+    // 🔥 STEP 1: get trainer_profile.id from user.id
+    const { data: trainerProfile, error: profileError } = await supabase
+      .from("trainer_profiles")
+      .select("user_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (profileError || !trainerProfile) {
+      return NextResponse.json(
+        { error: "Trainer profile not found" },
+        { status: 404 }
+      );
+    }
+    const trainerProfileId = trainerProfile.user_id;
+    console.log("trainerprfileid",trainerProfileId)
+
+    // 🔥 STEP 2: use trainer_profile.id
     const { data, error } = await supabase
       .from("trainee_requests")
       .select(`
@@ -36,26 +53,23 @@ export async function GET(request: Request) {
           gender
         )
       `)
-      .eq("trainer_id", trainerId)
-      .eq("status", "accepted") // only accepted requests
+      .eq("trainer_id", trainerProfileId)
+      .eq("status", "accepted")
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error(error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Map rows safely
-    const trainees = data
-      ?.filter((r: any) => r.trainee) // only include rows with trainee relation
-      .map((r: any) => ({
-        id: r.trainee.id,
-        full_name: r.trainee.name || r.trainee_profile?.full_name || "Unknown",
-        profile_image:
-          r.trainee_profile?.profile_image || "/trainer-placeholder.png",
-        active_plan: null, // placeholder
-        start_date: null, // placeholder
-        completion: 0, // placeholder
+    const trainees =
+      data?.map((r: any) => ({
+        id: r.trainee?.id,
+        full_name:
+          r.trainee_profile?.full_name || r.trainee?.name || "Unknown",
+        profile_image: r.trainee_profile?.profile_image || null,
+        active_plan: null,
+        start_date: null,
+        completion: 0,
         goal: r.trainee_profile?.goal || "",
         height: r.trainee_profile?.height || "",
         weight: r.trainee_profile?.weight || "",
@@ -64,6 +78,7 @@ export async function GET(request: Request) {
         gender: r.trainee_profile?.gender || "",
       })) || [];
 
+      console.log("Raw data from supabase:", data);
     return NextResponse.json({ success: true, trainees });
   } catch (err) {
     console.error(err);

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 
-/* ================= Types ================= */
+/* ================= TYPES ================= */
 
 interface Plan {
   name: string;
@@ -28,13 +28,13 @@ interface Review {
 }
 
 interface Trainer {
-  id: string;
-  user_id: string;
+  id: string; // trainer_profiles.id
+  user_id: string; // users.id
   full_name: string;
   profile_image?: string;
   bio?: string;
   specializations?: Record<string, number>;
-  certificates?: string | Certification[] | string;
+  certificates?: string | Certification[];
   plans?: {
     bronze?: Plan;
     silver?: Plan;
@@ -42,11 +42,11 @@ interface Trainer {
   };
   rating?: number;
   reviews?: Review[];
-  clients_count?: number;
 }
 
-/* ================= Helper ================= */
+/* ================= HELPERS ================= */
 
+// Calculate total experience from specialization years
 const getTotalExperience = (specializations?: Record<string, number>) => {
   if (!specializations) return 0;
   return Object.values(specializations).reduce(
@@ -55,17 +55,24 @@ const getTotalExperience = (specializations?: Record<string, number>) => {
   );
 };
 
-/* ================= Page ================= */
+/* ================= PAGE ================= */
 
 export default function TrainerDetailPage() {
   const { id } = useParams();
+
   const [trainer, setTrainer] = useState<Trainer | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Request status controls button state & text
   const [requestStatus, setRequestStatus] = useState<
-    "idle" | "pending" | "accepted"
+    "idle" | "pending" | "accepted" | "rejected"
   >("idle");
 
-  /* ================= Fetch Trainer ================= */
+const [planStatuses, setPlanStatuses] = useState<Record<string, "idle" | "pending" | "accepted" | "rejected">>({});
+
+
+  /* ================= FETCH TRAINER ================= */
+
   useEffect(() => {
     if (!id) return;
 
@@ -75,29 +82,10 @@ export default function TrainerDetailPage() {
         const data = await res.json();
 
         if (data.success) {
-          const reviews = data.trainer.reviews || [
-            {
-              id: "1",
-              reviewer: "David K.",
-              rating: 5,
-              comment:
-                "Marcus is incredible. Added skills to my default in just 3 months.",
-              date: "2 days ago",
-            },
-            {
-              id: "2",
-              reviewer: "Sarah L.",
-              rating: 5,
-              comment:
-                "Highly recommended! Explains the 'why' behind every exercise.",
-              date: "1 week ago",
-            },
-          ];
-
-          setTrainer({ ...data.trainer, reviews });
+          setTrainer(data.trainer);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error("Failed to fetch trainer", error);
       } finally {
         setLoading(false);
       }
@@ -106,11 +94,18 @@ export default function TrainerDetailPage() {
     fetchTrainer();
   }, [id]);
 
-  /* ================= Check Request Status ================= */
+  /* ================= CHECK REQUEST STATUS ================= */
+  /**
+   * This runs ONCE trainer is loaded
+   * It checks:
+   * - No request  → idle
+   * - Request sent → pending
+   * - Accepted → accepted
+   */
   useEffect(() => {
     if (!trainer?.id) return;
 
-    const checkRequestStatus = async () => {
+    const checkStatus = async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData?.session) return;
@@ -125,72 +120,157 @@ export default function TrainerDetailPage() {
         );
 
         const data = await res.json();
-        if (data.exists) {
-          // data.status can be "pending" or "accepted"
-          setRequestStatus(data.status);
+
+        if (data.exists && data.status) {
+          setRequestStatus(data.status); // ✅ pending / accepted
         } else {
           setRequestStatus("idle");
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error("Status check failed", error);
+        setRequestStatus("idle");
       }
     };
 
-    checkRequestStatus();
+    checkStatus();
   }, [trainer?.id]);
 
-  /* ================= Send Request ================= */
+  /* ================= SEND REQUEST ================= */
+  /**
+   * Important rules:
+   * - If success → pending
+   * - If already sent → pending
+   * - Never reset to idle on backend error message
+   */
   const sendRequest = async () => {
     try {
-      const trainer_id = trainer?.user_id; // users.id
-      if (!trainer_id) return toast.error("Trainer ID missing");
+      const { data: sessionData } = await supabase.auth.getSession();
 
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session) {
-        return toast.error("You must be logged in to send a request");
+      if (!sessionData?.session) {
+        toast.error("Please login first");
+        return;
       }
 
-      const accessToken = sessionData.session.access_token;
+      // Optimistic UI
       setRequestStatus("pending");
 
       const res = await fetch("/api/trainees/requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${sessionData.session.access_token}`,
         },
         body: JSON.stringify({
-          trainer_profile_id: trainer.id,
+          trainer_profile_id: trainer?.id,
         }),
       });
 
       const data = await res.json();
 
-      if (data?.exists) {
+      // ✅ Request created
+      if (data.success) {
+        toast.success("Request sent successfully");
         setRequestStatus("pending");
-      } else {
-        setRequestStatus("idle");
+        return;
       }
 
-      if (data.success) {
-        toast.success("Request sent successfully!");
+      // ✅ Already sent case (MOST IMPORTANT FIX)
+      if (data.message === "Request already sent") {
+        toast.success("Request already sent");
         setRequestStatus("pending");
-      } else {
-        setRequestStatus("idle");
-        toast.error(data.message || "Failed to send request");
+        return;
       }
-    } catch (err) {
-      console.error(err);
+
+      // ❌ Any real error
+      toast.error(data.message || "Failed to send request");
       setRequestStatus("idle");
+    } catch (error) {
+      console.error("Send request failed", error);
       toast.error("Something went wrong");
+      setRequestStatus("idle");
     }
   };
 
-  /* ================= Loading / Error ================= */
+  /* ================= select plan ================= */
+
+ const selectPlan = async (planKey: string, plan: Plan) => {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData?.session) {
+      toast.error("Please login first");
+      return;
+    }
+
+    if (!trainer) return;
+
+    setPlanStatuses(prev => ({ ...prev, [planKey]: "pending" }));
+
+    const res = await fetch("/api/trainers/plan_requests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        trainee_id: sessionData.session.user.id,
+        trainer_profile_id: trainer.id, // ✅ correct field
+        plan_category: planKey,
+        price: plan.price,
+        duration_months: Number(plan.duration),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success("Plan request sent successfully");
+    } else {
+      toast.error(data.error || "Failed to send plan request");
+      setPlanStatuses(prev => ({ ...prev, [planKey]: "idle" }));
+    }
+  } catch (err) {
+    toast.error("Something went wrong");
+    setPlanStatuses(prev => ({ ...prev, [planKey]: "idle" }));
+  }
+};
+
+
+
+  /* ================= Check plan status ================= */
+
+  useEffect(() => {
+  const checkPlanStatus = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session || !trainer?.id) return;
+
+      const res = await fetch(
+        `/api/trainers/plan_requests?trainee_id=${sessionData.session.user.id}&trainer_profile_id=${trainer.id}`
+      );
+      const data = await res.json();
+
+      // Map each plan_category to its status
+      const statusMap: Record<string, "idle" | "pending" | "accepted" | "rejected"> = {};
+
+      data.forEach((req: any) => {
+        statusMap[req.plan_category] = req.status; // "pending" | "accepted" | "rejected"
+      });
+
+      setPlanStatuses(statusMap);
+    } catch (error) {
+      console.error("Failed to fetch plan status", error);
+    }
+  };
+
+  if (trainer?.id) checkPlanStatus();
+}, [trainer?.id]);
+
+
+  /* ================= LOADING / ERROR ================= */
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center text-white">
         Loading...
       </div>
     );
@@ -198,13 +278,14 @@ export default function TrainerDetailPage() {
 
   if (!trainer) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
-        Trainer not found.
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Trainer not found
       </div>
     );
   }
 
-  /* ================= JSONB Certificates ================= */
+  /* ================= CERTIFICATES PARSE ================= */
+
   const certificates: Certification[] = (() => {
     try {
       if (typeof trainer.certificates === "string") {
@@ -215,7 +296,6 @@ export default function TrainerDetailPage() {
       return [];
     }
   })();
-
   /* ================= JSX ================= */
   return (
     <div className="min-h-screen bg-[#121212] text-white p-6 md:p-10">
@@ -262,22 +342,22 @@ export default function TrainerDetailPage() {
             </div>
 
             <button
-              disabled={
-                requestStatus === "pending" || requestStatus === "accepted"
-              }
               onClick={sendRequest}
-              className={`px-6 py-2 rounded-lg font-semibold transition
-    ${
-      requestStatus === "pending" || requestStatus === "accepted"
-        ? "bg-gray-600 cursor-not-allowed text-white"
-        : "bg-[#00ff66] text-black hover:scale-105"
-    }`}
+              disabled={requestStatus !== "idle"}
+              className={`px-6 py-2 rounded-lg font-semibold
+            ${
+              requestStatus === "idle"
+                ? "bg-[#00ff66] text-black"
+                : "bg-gray-600 cursor-not-allowed"
+            }`}
             >
               {requestStatus === "pending"
                 ? "Pending Request"
                 : requestStatus === "accepted"
                   ? "Request Accepted"
-                  : "Send Request"}
+                  : requestStatus === "rejected"
+                    ? "Request Rejected"
+                    : "Send Request"}
             </button>
           </div>
 
@@ -390,16 +470,34 @@ export default function TrainerDetailPage() {
                     </li>
                   </ul>
                   <button
-                    disabled={requestStatus !== "accepted"}
-                    className={`mt-4 w-full py-2 rounded-lg font-semibold transition-colors duration-300
+  onClick={() => selectPlan(key, plan)}
+  disabled={
+    requestStatus !== "accepted" || // can't select plan unless trainer accepted
+    planStatuses[key] === "pending" || // already requested
+    planStatuses[key] === "accepted"
+  }
+  className={`mt-4 w-full py-2 rounded-lg font-semibold transition-colors duration-300
     ${
-      requestStatus === "accepted"
+      planStatuses[key] === "accepted"
         ? "bg-[#00ff66] text-black hover:bg-green-500"
-        : "bg-gray-700 text-gray-400 cursor-not-allowed"
+        : planStatuses[key] === "pending"
+          ? "bg-orange-200 text-black cursor-not-allowed"
+          : planStatuses[key] === "rejected"
+          ? "bg-red-200 text-black cursor-not-allowed"
+          : requestStatus === "accepted"
+            ? "bg-[#00ff66] text-black hover:bg-green-500"
+            : "bg-gray-700 text-gray-400 cursor-not-allowed"
     }`}
-                  >
-                    Select Plan
-                  </button>
+>
+  {planStatuses[key] === "pending"
+    ? "Pending"
+    : planStatuses[key] === "accepted"
+      ? "Accepted"
+      : requestStatus === "accepted"
+        ? "Select Plan"
+        : "Request Trainer First"}
+</button>
+
                 </div>
               ),
           )}

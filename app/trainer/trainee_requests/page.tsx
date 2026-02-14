@@ -60,7 +60,7 @@ export default function HireRequestsPage() {
   const handleAccept = async (requestId: string) => {
     setButtonLoading((prev) => ({ ...prev, [requestId]: true }));
     try {
-      const res = await fetch("/api/trainer_requests/accept", {
+      const res = await fetch("/api/trainers/trainee_requests/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request_id: requestId }),
@@ -86,7 +86,7 @@ export default function HireRequestsPage() {
   const handleReject = async (requestId: string) => {
     setButtonLoading((prev) => ({ ...prev, [requestId]: true }));
     try {
-      const res = await fetch("/api/trainer_requests/reject", {
+      const res = await fetch("/api/trainers/trainee_requests/reject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request_id: requestId }),
