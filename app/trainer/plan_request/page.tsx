@@ -33,6 +33,7 @@ export default function PlanRequestsPage() {
   const fetchPlanRequests = async () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
+      const traineeId = sessionData.session?.user.id;
 
       if (!sessionData?.session) {
         toast.error("Please login first");
@@ -57,7 +58,7 @@ export default function PlanRequestsPage() {
 
       // 2️⃣ Call API with trainer_profile_id
       const res = await fetch(
-        `/api/trainers/plan_requests?trainer_profile_id=${trainer_profile_id}`
+        `/api/trainers/plan_requests?trainer_profile_id=${trainer_profile_id}&trainee_id=${traineeId}`
       );
 
       const data = await res.json();
@@ -66,6 +67,8 @@ export default function PlanRequestsPage() {
         toast.error(data.error || "Failed to fetch plan requests");
         return;
       }
+
+      
 
       // 3️⃣ Format API response for UI
       const formatted = data.map((item: any) => ({

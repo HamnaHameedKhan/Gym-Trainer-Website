@@ -80,8 +80,7 @@ export async function GET(req: Request) {
   const trainer_profile_id = searchParams.get("trainer_profile_id");
 
   const trainee_id = searchParams.get("trainee_id");
-  console.log("paramsa",trainer_profile_id)
-
+  // console.log("paramsa",trainee_id)
   if (!trainer_profile_id) {
     return NextResponse.json(
       { error: "Missing required params" },
@@ -107,7 +106,7 @@ export async function GET(req: Request) {
   console.log("user:",trainer_user_id)
 
   // 2️⃣ Fetch plan requests using SAME user_id
-  const { data, error } = await supabase
+   let query = supabase
     .from("plan_requests")
     .select(`
       id,
@@ -122,10 +121,18 @@ export async function GET(req: Request) {
       (id, full_name, email)
     `)
     .eq("trainer_id", trainer_user_id)
-    .eq("trainee_id", trainee_id)
     .order("created_at", { ascending: false });
 
-    console.log(data)
+    console.log(query)
+
+  
+  const { data, error } = await query;
+    
+  // 3️⃣ Apply trainee filter only if trainee_id exists
+  if (trainee_id) {
+    query = query.eq("trainee_id", trainee_id);
+  }
+
 
   if (error) {
     return NextResponse.json(

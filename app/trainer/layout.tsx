@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 
+
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState("Dashboard");
   const router = useRouter();
